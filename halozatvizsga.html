@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Háló Ötös</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        /* Modern reset és alapok */
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Glassmorphism kártyák */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Animációk definíciói */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            50% { box-shadow: 0 0 20px 0 rgba(34, 197, 94, 0.7); }
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .animate-shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        .animate-success {
+            animation: pulse-glow 0.8s ease-out;
+        }
+
+        /* Interakciók */
+        .btn-action { 
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-action:hover {
+            transform: translateY(-2px) scale(1.02);
+            filter: brightness(1.1);
+        }
+        .btn-action:active { 
+            transform: scale(0.95); 
+        }
+
+        /* Válasz gombok specifikus hover */
+        .btn-answer-true:hover {
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+            border-color: rgba(16, 185, 129, 0.6);
+        }
+        .btn-answer-false:hover {
+            box-shadow: 0 10px 25px -5px rgba(244, 63, 94, 0.4);
+            border-color: rgba(244, 63, 94, 0.6);
+        }
+
+        /* Progress Bar Animáció */
+        .progress-fill { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* Layout stabilitás */
+        .interaction-area {
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        /* Fade Transitions */
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden selection:bg-indigo-500 selection:text-white">
+
+    <!-- Háttér dekorációk -->
+    <div class="fixed top-20 left-10 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl animate-float" style="animation-delay: 0s;"></div>
+    <div class="fixed bottom-20 right-10 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl animate-float" style="animation-delay: -2s;"></div>
+
+    <!-- Felső sáv (Status Bar) -->
+    <div class="w-full p-4 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-white/10">
+                <i class="fas fa-network-wired text-white text-sm"></i>
+            </div>
+            <span class="font-bold text-xl tracking-tight text-white drop-shadow-md">Háló<span class="text-indigo-400">Ötös</span></span>
+        </div>
+        
+        <!-- Pontszám kijelző (Játék alatt látszik) -->
+        <div id="stats-bar" class="hidden flex gap-4 text-xs font-bold bg-white/5 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
+            <span class="text-emerald-400 flex items-center gap-1.5"><i class="fas fa-check-circle"></i> <span id="score-counter">0</span></span>
+            <span class="text-white/20">|</span>
+            <span class="text-blue-300"><span id="mode-indicator">Gyakorlás</span></span>
+        </div>
+    </div>
+
+    <!-- Fő Tartalom -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-lg mx-auto relative z-10">
+        
+        <!-- === 1. MENÜ KÉPERNYŐ === -->
+        <div id="menu-screen" class="w-full flex flex-col gap-8 fade-in">
+            <div class="text-center mb-2">
+                <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-pink-300 mb-4 drop-shadow-sm">
+                    Készen állsz?
+                </h1>
+                <p class="text-indigo-200/60 text-base font-medium">Válassz módot a tudásod teszteléséhez</p>
+                <div id="db-status" class="mt-6 text-xs font-bold py-2 px-4 rounded-full bg-white/5 border border-white/10 inline-flex items-center gap-2 text-gray-400 animate-pulse">
+                    <i class="fas fa-spinner fa-spin"></i> Adatbázis betöltése...
+                </div>
+            </div>
+
+            <div class="grid gap-4">
+                <!-- Gyakorlás Mód Gomb -->
+                <button onclick="startGame('practice')" class="btn-action w-full bg-gradient-to-r from-indigo-600/20 to-indigo-900/20 hover:from-indigo-600/30 hover:to-indigo-900/30 border border-indigo-500/30 text-white p-6 rounded-2xl shadow-xl backdrop-blur-sm flex items-center justify-between group">
+                    <div class="text-left">
+                        <h3 class="font-bold text-xl text-indigo-100 mb-1">Gyakorlás</h3>
+                        <p class="text-xs text-indigo-300/70 font-medium">15-ös blokkok • Automatikus ismétlés</p>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-indigo-500/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500 transition-all duration-300 shadow-inner border border-white/5">
+                        <i class="fas fa-layer-group text-white text-xl"></i>
+                    </div>
+                </button>
+
+                <!-- Vizsga Mód Gomb -->
+                <button onclick="startGame('exam')" class="btn-action w-full bg-gradient-to-r from-pink-600/20 to-rose-900/20 hover:from-pink-600/30 hover:to-rose-900/30 border border-pink-500/30 text-white p-6 rounded-2xl shadow-xl backdrop-blur-sm flex items-center justify-between group">
+                    <div class="text-left">
+                        <h3 class="font-bold text-xl text-pink-100 mb-1">Vizsga</h3>
+                        <p class="text-xs text-pink-300/70 font-medium">24 véletlen kérdés • Szigorú mód</p>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-pink-500/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-pink-500 transition-all duration-300 shadow-inner border border-white/5">
+                        <i class="fas fa-graduation-cap text-white text-xl"></i>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Fájl feltöltés fallback -->
+            <div class="mt-2 text-center">
+                <label class="text-xs text-slate-500 cursor-pointer hover:text-indigo-400 transition-colors flex flex-col items-center gap-2 p-4 border border-dashed border-slate-700 hover:border-indigo-500/50 rounded-xl bg-slate-900/30">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-file-excel"></i>
+                        <span>Kézi adatbázis betöltés (ha az automata nem megy)</span>
+                    </div>
+                    <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(this)">
+                </label>
+            </div>
+        </div>
+
+        <!-- === 2. JÁTÉK KÉPERNYŐ === -->
+        <div id="game-screen" class="hidden w-full h-full flex flex-col justify-between pb-6 fade-in">
+            
+            <!-- Progress Top -->
+            <div class="w-full mb-8 px-1">
+                <div class="flex justify-between text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">
+                    <span id="progress-text">0 / 0</span>
+                    <span id="retry-indicator" class="hidden text-orange-400 flex items-center gap-1 animate-pulse"><i class="fas fa-sync-alt"></i> Javítás</span>
+                </div>
+                <div class="h-2 w-full bg-slate-800/50 rounded-full overflow-hidden border border-white/5">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 progress-fill shadow-[0_0_10px_rgba(99,102,241,0.5)]" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Kártya -->
+            <div class="flex-grow flex items-center justify-center mb-8 perspective-1000">
+                <div id="question-card" class="glass-panel w-full min-h-[300px] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center relative overflow-hidden animate-float hover:border-indigo-500/30 group">
+                    <!-- Dekoratív háttér elem -->
+                    <div class="absolute -top-20 -right-20 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] group-hover:bg-indigo-500/30 transition-colors duration-500"></div>
+                    <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-pink-500/20 rounded-full blur-[60px] group-hover:bg-pink-500/30 transition-colors duration-500"></div>
+                    
+                    <span class="text-[11px] font-black tracking-[0.25em] text-indigo-300 uppercase mb-6 opacity-80 border-b border-indigo-500/30 pb-1">KÉRDÉS</span>
+                    
+                    <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed text-slate-100 select-none drop-shadow-lg">
+                        Betöltés...
+                    </h2>
+                </div>
+            </div>
+
+            <!-- Interakciós Terület -->
+            <div class="interaction-area w-full relative">
+                
+                <!-- A: Válasz Gombok -->
+                <div id="controls-answer" class="absolute w-full flex gap-4 h-full items-center transition-all duration-300">
+                    <button onclick="submitAnswer('I')" class="btn-action btn-answer-true flex-1 h-20 rounded-2xl bg-gradient-to-br from-emerald-600/90 to-emerald-800/90 hover:from-emerald-500 hover:to-emerald-700 text-white font-bold text-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 border border-emerald-500/20 backdrop-blur-sm">
+                        <i class="fas fa-check"></i> IGAZ
+                    </button>
+                    <button onclick="submitAnswer('H')" class="btn-action btn-answer-false flex-1 h-20 rounded-2xl bg-gradient-to-br from-rose-600/90 to-rose-800/90 hover:from-rose-500 hover:to-rose-700 text-white font-bold text-xl shadow-lg shadow-rose-900/20 flex items-center justify-center gap-3 border border-rose-500/20 backdrop-blur-sm">
+                        <i class="fas fa-times"></i> HAMIS
+                    </button>
+                </div>
+
+                <!-- B: Visszajelzés (Overlay) -->
+                <div id="controls-feedback" class="absolute w-full h-full flex flex-col justify-center items-center opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4">
+                    
+                    <!-- Dinamikus tartalom -->
+                    <div id="feedback-content" class="w-full mb-4 p-5 rounded-2xl border backdrop-blur-xl text-left shadow-2xl">
+                        <!-- Ide kerül a JS által generált HTML -->
+                    </div>
+
+                    <button onclick="nextQuestion()" class="btn-action w-full h-16 rounded-xl bg-slate-100 hover:bg-white text-slate-900 font-extrabold text-lg shadow-lg shadow-white/10 flex items-center justify-center gap-2">
+                        Következő <i class="fas fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="w-full text-center mt-6">
+                <button onclick="exitToMenu()" class="text-slate-500 text-xs font-bold hover:text-slate-300 transition-colors uppercase tracking-widest py-2 px-4 rounded-lg hover:bg-white/5">
+                    Kilépés a menübe
+                </button>
+            </div>
+        </div>
+
+        <!-- === 3. EREDMÉNY KÉPERNYŐ === -->
+        <div id="result-screen" class="hidden text-center w-full fade-in">
+            <!-- Dinamikus Eredmény Ikon -->
+            <div id="result-icon-container" class="w-40 h-40 mx-auto rounded-full flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-8 text-5xl text-white relative bg-slate-800/50 backdrop-blur-sm border border-white/5">
+                <svg class="absolute w-full h-full transform -rotate-90 p-2">
+                    <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="12" fill="transparent"/>
+                    <circle id="result-circle" cx="50%" cy="50%" r="45%" stroke="#22c55e" stroke-width="12" fill="transparent" stroke-dasharray="283" stroke-dashoffset="283" stroke-linecap="round" class="transition-all duration-1500 ease-out"/>
+                </svg>
+                <div id="result-percentage" class="font-black text-3xl drop-shadow-md">0%</div>
+            </div>
+            
+            <h2 id="result-title" class="text-4xl font-extrabold text-white mb-3">Eredmény</h2>
+            <p id="result-subtitle" class="text-slate-400 mb-10 text-lg">Részletek...</p>
+
+            <div class="flex flex-col gap-4">
+                <button onclick="startGame(currentMode)" class="btn-action w-full bg-indigo-600 hover:bg-indigo-500 text-white p-5 rounded-2xl font-bold shadow-lg shadow-indigo-500/30 border border-indigo-400/20">
+                    Újra <i class="fas fa-redo ml-2"></i>
+                </button>
+                <button onclick="exitToMenu()" class="btn-action w-full bg-white/5 hover:bg-white/10 text-white p-5 rounded-2xl font-bold backdrop-blur-sm border border-white/10">
+                    Főmenü
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JavaScript Logika -->
+    <script>
+        // --- ADAT ÉS ÁLLAPOT ---
+        
+        let fullQuestionPool = []; 
+        let currentMode = 'practice'; // 'practice' or 'exam'
+        
+        // Játékmenet változók
+        let activePool = [];       // A jelenlegi aktív kérdések
+        let remainingGlobal = [];  // Practice módnál a "többi" kérdés
+        
+        let currentMistakes = [];  // Practice: javítandó kérdések
+        let currentQuestion = null;
+        
+        // Indexelés és Progressz
+        let currentIndex = 0;      
+        let currentBatchTotal = 0; // Practice módhoz: mennyi volt a blokk elején
+        
+        let globalScore = 0;
+        let isRetryMode = false;   // Practice: éppen javítunk-e
+
+        const PRACTICE_BATCH_SIZE = 15;
+        const EXAM_SIZE = 24;
+
+        // --- ADATBÁZIS BETÖLTÉS ---
+
+        function processWorkbook(arrayBuffer) {
+            try {
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rawData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                
+                let newQuestions = [];
+                
+                rawData.forEach(row => {
+                    let q = row[0];
+                    let a = row[1];
+                    let e = row[2]; 
+
+                    // CSV Fix logic
+                    if (!a && typeof q === 'string') {
+                        const match = q.match(/^(.*?)[,;]\s*([IHih])(?:\s*[,;]\s*(.*))?$/);
+                        if (match) {
+                            q = match[1].trim(); 
+                            a = match[2].toUpperCase().trim(); 
+                            if (match[3]) e = match[3].trim();
+                        }
+                    }
+
+                    if (q && a) {
+                        const cleanA = String(a).trim().toUpperCase();
+                        if (cleanA === 'I' || cleanA === 'H') {
+                            newQuestions.push({
+                                t: String(q).trim(),
+                                a: cleanA,
+                                e: e ? String(e).trim() : null 
+                            });
+                        }
+                    }
+                });
+                return newQuestions;
+            } catch (error) {
+                console.error(error);
+                return [];
+            }
+        }
+
+        async function init() {
+            const statusEl = document.getElementById('db-status');
+            const fileName = "Vocabulary export.xlsx";
+            
+            try {
+                const response = await fetch(fileName);
+                if (!response.ok) throw new Error("Local file not found");
+                const buf = await response.arrayBuffer();
+                const qs = processWorkbook(new Uint8Array(buf));
+                
+                if (qs.length > 0) {
+                    fullQuestionPool = qs;
+                    statusEl.innerHTML = `<i class="fas fa-check-circle text-emerald-400"></i> ${qs.length} kérdés kész`;
+                    statusEl.className = "mt-6 text-xs font-bold py-2 px-4 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-2";
+                }
+            } catch (e) {
+                console.log("Auto-load failed, waiting for manual upload");
+                statusEl.innerHTML = `<i class="fas fa-info-circle"></i> Várakozás fájlra...`;
+                statusEl.classList.remove('animate-pulse');
+            }
+        }
+
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const qs = processWorkbook(new Uint8Array(e.target.result));
+                if (qs.length > 0) {
+                    fullQuestionPool = qs;
+                    alert(`${qs.length} kérdés sikeresen betöltve!`);
+                    document.getElementById('db-status').innerHTML = `<i class="fas fa-check-circle text-emerald-400"></i> ${qs.length} kérdés kész`;
+                    document.getElementById('db-status').className = "mt-6 text-xs font-bold py-2 px-4 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-2";
+                } else {
+                    alert("Nem találtam érvényes kérdéseket a fájlban.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- SEGÉDFÜGGVÉNYEK ---
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- JÁTÉK INDÍTÁS ---
+
+        function startGame(mode) {
+            if (fullQuestionPool.length === 0) {
+                alert("Kérlek tölts be előbb egy kérdéssort!");
+                return;
+            }
+
+            currentMode = mode;
+            globalScore = 0;
+            currentIndex = 0;
+            currentMistakes = [];
+            isRetryMode = false;
+
+            // Mód specifikus beállítások
+            if (mode === 'practice') {
+                remainingGlobal = shuffle([...fullQuestionPool]);
+                document.getElementById('mode-indicator').innerText = "Gyakorlás";
+                loadNextPracticeBatch(); // Start Practice Loop
+            } else {
+                // Exam mode: Vegyünk ki 24 véletlen kérdést
+                activePool = shuffle([...fullQuestionPool]).slice(0, EXAM_SIZE);
+                document.getElementById('mode-indicator').innerText = "Vizsga";
+                renderQuestion(); // Start Exam Loop
+            }
+            
+            // UI Setup
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('stats-bar').classList.remove('hidden');
+        }
+
+        // --- PRACTICE MÓD LOGIKA ---
+
+        function loadNextPracticeBatch() {
+            isRetryMode = false;
+            currentMistakes = [];
+            currentIndex = 0; // Reset internal batch index
+            
+            if (remainingGlobal.length === 0) {
+                showFinalResult(true); 
+                return;
+            }
+
+            const countToTake = Math.min(PRACTICE_BATCH_SIZE, remainingGlobal.length);
+            activePool = remainingGlobal.splice(0, countToTake);
+            currentBatchTotal = activePool.length; // Set batch size for progress bar
+            
+            renderQuestion();
+        }
+
+        function handlePracticeNext() {
+            // Ellenőrizzük, hogy elfogyott-e a jelenlegi aktív pool
+            if (activePool.length === 0) {
+                if (currentMistakes.length > 0) {
+                    // Javítás indul
+                    isRetryMode = true;
+                    activePool = shuffle([...currentMistakes]);
+                    currentBatchTotal = activePool.length; // Új batch méret a javításhoz
+                    currentMistakes = [];
+                    currentIndex = 0;
+                    
+                    // Finom átvezető animáció vagy alert helyett overlay jobb lenne, de most maradjunk a logikánál
+                    alert(`Blokk vége! ${activePool.length} kérdést újra kell ismételned.`);
+                    renderQuestion();
+                } else {
+                    // Következő blokk
+                    loadNextPracticeBatch();
+                }
+            } else {
+                renderQuestion();
+            }
+        }
+
+        // --- EXAM MÓD LOGIKA ---
+
+        function handleExamNext() {
+            currentIndex++;
+            if (currentIndex >= activePool.length) {
+                showFinalResult(false);
+            } else {
+                renderQuestion();
+            }
+        }
+
+        // --- KÖZÖS RENDERER ---
+
+        function renderQuestion() {
+            // Adatlekérés
+            if (currentMode === 'practice') {
+                if (activePool.length === 0) {
+                    handlePracticeNext();
+                    return;
+                }
+                currentQuestion = activePool[0]; // Mindig a lista eleje
+            } else {
+                currentQuestion = activePool[currentIndex];
+            }
+
+            const card = document.getElementById('question-card');
+            const cardText = document.getElementById('question-text');
+            const scoreEl = document.getElementById('score-counter');
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
+            const retryIndicator = document.getElementById('retry-indicator');
+
+            // Reset UI Animációk
+            card.classList.remove('animate-shake'); // Shake reset
+            
+            // Reset Controls
+            document.getElementById('controls-answer').style.opacity = '1';
+            document.getElementById('controls-answer').style.pointerEvents = 'auto';
+            document.getElementById('controls-feedback').style.opacity = '0';
+            document.getElementById('controls-feedback').style.pointerEvents = 'none';
+            document.getElementById('controls-feedback').classList.remove('translate-y-0');
+            document.getElementById('controls-feedback').classList.add('translate-y-4');
+
+            cardText.innerText = currentQuestion.t;
+            scoreEl.innerText = globalScore;
+
+            // Progress kijelzés mód szerint
+            if (currentMode === 'practice') {
+                if (isRetryMode) {
+                    retryIndicator.classList.remove('hidden');
+                    progressText.innerText = `${currentIndex + 1} / ${currentBatchTotal}`;
+                    
+                    const pct = ((currentIndex + 1) / currentBatchTotal) * 100;
+                    progressBar.style.width = `${pct}%`;
+                    progressBar.className = "h-full bg-orange-500 progress-fill shadow-[0_0_15px_rgba(249,115,22,0.6)]";
+                } else {
+                    retryIndicator.classList.add('hidden');
+                    // Progress: Aktuális index a batch méretéhez képest
+                    progressText.innerText = `Kérdés: ${currentIndex + 1} / ${currentBatchTotal}`;
+                    
+                    const pct = ((currentIndex + 1) / currentBatchTotal) * 100;
+                    progressBar.style.width = `${pct}%`;
+                    progressBar.className = "h-full bg-gradient-to-r from-indigo-500 to-purple-500 progress-fill shadow-[0_0_10px_rgba(99,102,241,0.5)]";
+                }
+            } else {
+                // Exam: X / 24
+                retryIndicator.classList.add('hidden');
+                progressText.innerText = `${currentIndex + 1} / ${EXAM_SIZE}`;
+                const pct = ((currentIndex + 1) / EXAM_SIZE) * 100;
+                progressBar.className = "h-full bg-gradient-to-r from-pink-500 to-rose-600 progress-fill shadow-[0_0_10px_rgba(236,72,153,0.5)]";
+                progressBar.style.width = `${pct}%`;
+            }
+        }
+
+        function submitAnswer(userChoice) {
+            const isCorrect = userChoice === currentQuestion.a;
+            const card = document.getElementById('question-card');
+            
+            // UI Váltás
+            const answerControls = document.getElementById('controls-answer');
+            const feedbackControls = document.getElementById('controls-feedback');
+            const feedbackContent = document.getElementById('feedback-content');
+
+            answerControls.style.opacity = '0';
+            answerControls.style.pointerEvents = 'none';
+            
+            feedbackControls.classList.remove('translate-y-4');
+            feedbackControls.classList.add('translate-y-0');
+            feedbackControls.style.opacity = '1';
+            feedbackControls.style.pointerEvents = 'auto';
+
+            const correctText = currentQuestion.a === 'I' ? 'IGAZ' : 'HAMIS';
+            const explanation = currentQuestion.e ? `<div class="mt-3 text-sm opacity-90 border-t border-white/20 pt-3 font-light leading-relaxed">${currentQuestion.e}</div>` : '';
+
+            // Animációk és Logika
+            if (isCorrect) {
+                if (currentMode === 'exam' || !isRetryMode) {
+                    globalScore++;
+                }
+                
+                // Sikeres animáció a kártyán
+                card.classList.add('animate-success');
+                setTimeout(() => card.classList.remove('animate-success'), 800);
+
+                feedbackContent.className = "w-full mb-4 p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-xl text-left shadow-[0_0_30px_rgba(16,185,129,0.15)]";
+                feedbackContent.innerHTML = `
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+                            <i class="fas fa-check text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-emerald-400 text-xl block">Helyes!</span>
+                            <span class="text-xs text-emerald-200/60 uppercase tracking-wider">Szép munka</span>
+                        </div>
+                    </div>
+                    ${explanation}
+                `;
+            } else {
+                // Hibás animáció (remegés)
+                card.classList.add('animate-shake');
+                
+                if (currentMode === 'practice') {
+                    currentMistakes.push(currentQuestion);
+                }
+
+                feedbackContent.className = "w-full mb-4 p-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-xl text-left shadow-[0_0_30px_rgba(244,63,94,0.15)]";
+                feedbackContent.innerHTML = `
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-lg shadow-rose-500/30">
+                            <i class="fas fa-times text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-rose-400 text-xl block">Téves</span>
+                            <span class="text-xs text-rose-200/60 uppercase tracking-wider">Próbáld újra később</span>
+                        </div>
+                    </div>
+                    <p class="text-base text-slate-200 mt-2 bg-white/5 p-2 rounded-lg border border-white/5">A helyes válasz: <strong class="text-white tracking-wide">${correctText}</strong></p>
+                    ${explanation}
+                `;
+            }
+            
+            document.getElementById('score-counter').innerText = globalScore;
+        }
+
+        function nextQuestion() {
+            if (currentMode === 'practice') {
+                activePool.shift(); 
+                currentIndex++; // Növeljük az indexet a progress barhoz
+                handlePracticeNext();
+            } else {
+                handleExamNext();
+            }
+        }
+
+        function showFinalResult(isPracticeComplete) {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('stats-bar').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            const title = document.getElementById('result-title');
+            const subtitle = document.getElementById('result-subtitle');
+            const circle = document.getElementById('result-circle');
+            const percentageText = document.getElementById('result-percentage');
+            
+            let percentage = 0;
+            let total = 0;
+
+            if (currentMode === 'practice') {
+                title.innerText = "Gyakorlás Vége!";
+                subtitle.innerText = "Minden kérdést sikeresen átvettél.";
+                percentage = 100;
+                circle.setAttribute('stroke', '#22c55e'); 
+            } else {
+                total = EXAM_SIZE;
+                percentage = Math.round((globalScore / total) * 100);
+                title.innerText = "Vizsga Eredmény";
+                subtitle.innerText = `${total} kérdésből ${globalScore} helyes válasz.`;
+                
+                if (percentage >= 80) circle.setAttribute('stroke', '#22c55e'); // 5
+                else if (percentage >= 60) circle.setAttribute('stroke', '#eab308'); // 3-4
+                else circle.setAttribute('stroke', '#ef4444'); // 1-2
+            }
+
+            percentageText.innerText = `${percentage}%`;
+            
+            // Kör animáció (r=45%, kerület ~283)
+            const circumference = 283;
+            const offset = circumference - (percentage / 100) * circumference;
+            
+            // Reset stroke
+            circle.style.strokeDashoffset = 283;
+            
+            // Trigger animáció
+            setTimeout(() => {
+                circle.style.strokeDashoffset = offset;
+            }, 100);
+        }
+
+        function exitToMenu() {
+            if(confirm("Biztosan ki akarsz lépni?")) {
+                document.getElementById('game-screen').classList.add('hidden');
+                document.getElementById('result-screen').classList.add('hidden');
+                document.getElementById('stats-bar').classList.add('hidden');
+                document.getElementById('menu-screen').classList.remove('hidden');
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
