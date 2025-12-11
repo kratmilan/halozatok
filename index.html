@@ -25,6 +25,8 @@
             min-height: 100vh;
             color: #e2e8f0;
             overflow-x: hidden;
+            /* JAVÍTÁS: overflow-y engedélyezése, hogy lehessen görgetni, ha lelóg */
+            overflow-y: auto; 
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -95,12 +97,14 @@
         /* Progress Bar Animáció */
         .progress-fill { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 
-        /* Layout stabilitás */
+        /* JAVÍTÁS: Layout stabilitás - mobilbarátabb magasság */
         .interaction-area {
-            min-height: 180px;
+            min-height: 180px; 
             display: flex;
             flex-direction: column;
             justify-content: center;
+            /* Biztosítjuk, hogy a tartalom ne lógjon ki csúnyán */
+            position: relative; 
         }
         
         /* Fade Transitions */
@@ -118,14 +122,14 @@
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden selection:bg-indigo-500 selection:text-white">
+<body class="flex flex-col min-h-screen selection:bg-indigo-500 selection:text-white">
 
     <!-- Háttér dekorációk -->
-    <div class="fixed top-20 left-10 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl animate-float" style="animation-delay: 0s;"></div>
-    <div class="fixed bottom-20 right-10 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl animate-float" style="animation-delay: -2s;"></div>
+    <div class="fixed top-20 left-10 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl animate-float -z-10" style="animation-delay: 0s;"></div>
+    <div class="fixed bottom-20 right-10 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl animate-float -z-10" style="animation-delay: -2s;"></div>
 
     <!-- Felső sáv (Status Bar) -->
-    <div class="w-full p-4 flex justify-between items-center z-10">
+    <div class="w-full p-4 flex justify-between items-center z-10 sticky top-0 bg-[#0f172a]/80 backdrop-blur-md border-b border-white/5 shadow-sm">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-white/10">
                 <i class="fas fa-network-wired text-white text-sm"></i>
@@ -142,10 +146,10 @@
     </div>
 
     <!-- Fő Tartalom -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-lg mx-auto relative z-10">
+    <main class="flex-grow flex flex-col items-center justify-start md:justify-center p-4 w-full max-w-lg mx-auto relative z-10 pb-10">
         
         <!-- === 1. MENÜ KÉPERNYŐ === -->
-        <div id="menu-screen" class="w-full flex flex-col gap-8 fade-in">
+        <div id="menu-screen" class="w-full flex flex-col gap-8 fade-in mt-4 md:mt-0">
             <div class="text-center mb-2">
                 <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-pink-300 mb-4 drop-shadow-sm">
                     Készen állsz?
@@ -193,10 +197,10 @@
         </div>
 
         <!-- === 2. JÁTÉK KÉPERNYŐ === -->
-        <div id="game-screen" class="hidden w-full h-full flex flex-col justify-between pb-6 fade-in">
+        <div id="game-screen" class="hidden w-full h-auto flex flex-col justify-start pb-6 fade-in">
             
             <!-- Progress Top -->
-            <div class="w-full mb-8 px-1">
+            <div class="w-full mb-6 px-1 mt-2">
                 <div class="flex justify-between text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">
                     <span id="progress-text">0 / 0</span>
                     <span id="retry-indicator" class="hidden text-orange-400 flex items-center gap-1 animate-pulse"><i class="fas fa-sync-alt"></i> Javítás</span>
@@ -207,15 +211,16 @@
             </div>
 
             <!-- Kártya -->
-            <div class="flex-grow flex items-center justify-center mb-8 perspective-1000">
-                <div id="question-card" class="glass-panel w-full min-h-[300px] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center relative overflow-hidden animate-float hover:border-indigo-500/30 group">
+            <div class="flex-grow-0 flex items-center justify-center mb-6 perspective-1000">
+                <!-- JAVÍTÁS: min-h-300px helyett mobilon kisebb (min-h-[220px]), hogy kiférjenek a gombok -->
+                <div id="question-card" class="glass-panel w-full min-h-[220px] md:min-h-[300px] rounded-[2rem] p-6 md:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden hover:border-indigo-500/30 group">
                     <!-- Dekoratív háttér elem -->
                     <div class="absolute -top-20 -right-20 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] group-hover:bg-indigo-500/30 transition-colors duration-500"></div>
                     <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-pink-500/20 rounded-full blur-[60px] group-hover:bg-pink-500/30 transition-colors duration-500"></div>
                     
-                    <span class="text-[11px] font-black tracking-[0.25em] text-indigo-300 uppercase mb-6 opacity-80 border-b border-indigo-500/30 pb-1">KÉRDÉS</span>
+                    <span class="text-[10px] md:text-[11px] font-black tracking-[0.25em] text-indigo-300 uppercase mb-4 opacity-80 border-b border-indigo-500/30 pb-1">KÉRDÉS</span>
                     
-                    <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed text-slate-100 select-none drop-shadow-lg">
+                    <h2 id="question-text" class="text-xl md:text-3xl font-bold leading-relaxed text-slate-100 select-none drop-shadow-lg">
                         Betöltés...
                     </h2>
                 </div>
@@ -225,31 +230,32 @@
             <div class="interaction-area w-full relative">
                 
                 <!-- A: Válasz Gombok -->
-                <div id="controls-answer" class="absolute w-full flex gap-4 h-full items-center transition-all duration-300">
-                    <button onclick="submitAnswer('I')" class="btn-action btn-answer-true flex-1 h-20 rounded-2xl bg-gradient-to-br from-emerald-600/90 to-emerald-800/90 hover:from-emerald-500 hover:to-emerald-700 text-white font-bold text-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 border border-emerald-500/20 backdrop-blur-sm">
+                <div id="controls-answer" class="w-full flex gap-4 items-center transition-all duration-300 absolute top-0 left-0 h-full">
+                    <button onclick="submitAnswer('I')" class="btn-action btn-answer-true flex-1 h-16 md:h-20 rounded-2xl bg-gradient-to-br from-emerald-600/90 to-emerald-800/90 hover:from-emerald-500 hover:to-emerald-700 text-white font-bold text-lg md:text-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 border border-emerald-500/20 backdrop-blur-sm">
                         <i class="fas fa-check"></i> IGAZ
                     </button>
-                    <button onclick="submitAnswer('H')" class="btn-action btn-answer-false flex-1 h-20 rounded-2xl bg-gradient-to-br from-rose-600/90 to-rose-800/90 hover:from-rose-500 hover:to-rose-700 text-white font-bold text-xl shadow-lg shadow-rose-900/20 flex items-center justify-center gap-3 border border-rose-500/20 backdrop-blur-sm">
+                    <button onclick="submitAnswer('H')" class="btn-action btn-answer-false flex-1 h-16 md:h-20 rounded-2xl bg-gradient-to-br from-rose-600/90 to-rose-800/90 hover:from-rose-500 hover:to-rose-700 text-white font-bold text-lg md:text-xl shadow-lg shadow-rose-900/20 flex items-center justify-center gap-3 border border-rose-500/20 backdrop-blur-sm">
                         <i class="fas fa-times"></i> HAMIS
                     </button>
                 </div>
 
-                <!-- B: Visszajelzés (Overlay) -->
-                <div id="controls-feedback" class="absolute w-full h-full flex flex-col justify-center items-center opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4">
+                <!-- B: Visszajelzés (Overlay) - JAVÍTÁS: absolute helyett lehet, hogy statikusan kellene, ha túl nagy, de az animációhoz kell az absolute. A görgetés megoldja. -->
+                <div id="controls-feedback" class="w-full flex flex-col justify-center items-center opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4 absolute top-0 left-0 min-h-full">
                     
                     <!-- Dinamikus tartalom -->
                     <div id="feedback-content" class="w-full mb-4 p-5 rounded-2xl border backdrop-blur-xl text-left shadow-2xl">
                         <!-- Ide kerül a JS által generált HTML -->
                     </div>
 
-                    <button onclick="nextQuestion()" class="btn-action w-full h-16 rounded-xl bg-slate-100 hover:bg-white text-slate-900 font-extrabold text-lg shadow-lg shadow-white/10 flex items-center justify-center gap-2">
+                    <button onclick="nextQuestion()" class="btn-action w-full h-14 md:h-16 rounded-xl bg-slate-100 hover:bg-white text-slate-900 font-extrabold text-lg shadow-lg shadow-white/10 flex items-center justify-center gap-2 mb-4">
                         Következő <i class="fas fa-arrow-right ml-1"></i>
                     </button>
                 </div>
 
             </div>
 
-            <div class="w-full text-center mt-6">
+            <!-- Kilépés gomb - kicsit lejjebb tolva -->
+            <div class="w-full text-center mt-12">
                 <button onclick="exitToMenu()" class="text-slate-500 text-xs font-bold hover:text-slate-300 transition-colors uppercase tracking-widest py-2 px-4 rounded-lg hover:bg-white/5">
                     Kilépés a menübe
                 </button>
@@ -257,7 +263,7 @@
         </div>
 
         <!-- === 3. EREDMÉNY KÉPERNYŐ === -->
-        <div id="result-screen" class="hidden text-center w-full fade-in">
+        <div id="result-screen" class="hidden text-center w-full fade-in mt-10">
             <!-- Dinamikus Eredmény Ikon -->
             <div id="result-icon-container" class="w-40 h-40 mx-auto rounded-full flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-8 text-5xl text-white relative bg-slate-800/50 backdrop-blur-sm border border-white/5">
                 <svg class="absolute w-full h-full transform -rotate-90 p-2">
@@ -516,6 +522,9 @@
             document.getElementById('controls-feedback').style.pointerEvents = 'none';
             document.getElementById('controls-feedback').classList.remove('translate-y-0');
             document.getElementById('controls-feedback').classList.add('translate-y-4');
+            // JAVÍTÁS: Biztosítjuk, hogy a z-index megfelelő legyen, ha overlay van
+            document.getElementById('controls-feedback').style.zIndex = '-1'; 
+
 
             cardText.innerText = currentQuestion.t;
             scoreEl.innerText = globalScore;
@@ -564,6 +573,7 @@
             feedbackControls.classList.add('translate-y-0');
             feedbackControls.style.opacity = '1';
             feedbackControls.style.pointerEvents = 'auto';
+            feedbackControls.style.zIndex = '10'; // Hozzúk előre a feedbacket
 
             const correctText = currentQuestion.a === 'I' ? 'IGAZ' : 'HAMIS';
             const explanation = currentQuestion.e ? `<div class="mt-3 text-sm opacity-90 border-t border-white/20 pt-3 font-light leading-relaxed">${currentQuestion.e}</div>` : '';
